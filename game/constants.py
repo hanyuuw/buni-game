@@ -50,3 +50,9 @@ MAX_CLOUD_STEP = 90
 
 # quanto eu gero além da borda direita (buffer pra não ficar aparecendo do nada)
 SPAWN_BUFFER = 180
+
+# ₊˚⊹🐇₊˚⊹  SCORE & DIFICULDADE  ₊˚⊹🐇₊˚⊹
+SCORE_PER_PIXEL   = 0.10
+SPEED_STEP_SCORE  = 100
+SPEED_STEP_DELTA  = 20
+SPEED_MAX         = 300

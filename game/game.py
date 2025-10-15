@@ -9,9 +9,11 @@ from .constants import (
     ASSETS_DIR, GROUND_Y,
     CAM_LEFT, CAM_RIGHT_RATIO,
     AUTO_SCROLL, PLAYER_START_X, MAX_DT,
+    SCORE_PER_PIXEL, SPEED_STEP_SCORE, SPEED_STEP_DELTA, SPEED_MAX,
 )
+
 from .player import Player
-from .cloudManager import CloudManager  # gerencia spawn/remoção de nuvens e colisão com o player
+from .cloudManager import CloudManager
 from .hud import HUD
 
 
@@ -45,6 +47,7 @@ class Game:
         # fundo e scroll horizontal do mundo
         self.bg = try_load_image("background", "bg.png")
         self.bg_scroll_x = 0.0
+        self._prev_scroll_x = 0.0  # para medir avanço real por frame
 
         # player
         self.player = Player()
@@ -76,22 +79,35 @@ class Game:
         )
         self.clouds = CloudManager(self._clouds_start_x, self.width)
 
-        # HUD (vidinhas / fps / pause)
+        # HUD
         self.hud = HUD()
+
+        # ₊˚⊹🐇₊˚⊹  SCORE / VELOCIDADE  ₊˚⊹🐇₊˚⊹
+        self.score = 0
+        self._score_px_acum = 0.0
+        self.world_speed = AUTO_SCROLL            # começa na velocidade padrão
+        self.next_speed_milestone = SPEED_STEP_SCORE
 
     # ₊˚⊹🐇₊˚⊹  QUEDA / RESET SUAVE  ₊˚⊹🐇₊˚⊹
     def _reset_after_fall(self) -> None:
-        """Remove 1 vida e volta pro começo quando o Buni cai da tela."""
-        self.player.lives = max(0, self.player.lives - 1)
+        """Caiu da tela: volta pro começo e zera o score. Vidas não mudam aqui."""
+        # score/dificuldade voltam ao início
+        self.score = 0
+        self._score_px_acum = 0.0
+        self.world_speed = AUTO_SCROLL  # volta pra velocidade base
+        self.next_speed_milestone = SPEED_STEP_SCORE
 
-        # volta câmera e nuvens
-        self.bg_scroll_x = 0
+        # volta câmera/scroll
+        self.bg_scroll_x = 0.0
+        self._prev_scroll_x = 0.0
+
+        # reseta nuvens para o começo
         self.clouds.reset(self._clouds_start_x)
 
-        # tenta respawn na plataforma, se tiver
+        # respawn na plataforma (se existir) ou no chão
         if self.platform_rect and self.platform_world_x is not None:
             self.player.rect.bottom = self.platform_rect.top
-            self.player.rect.left   = int(self.platform_world_x) + 20
+            self.player.rect.left = int(self.platform_world_x) + 20
         else:
             self.player.rect.bottom = GROUND_Y
             self.player.rect.x = PLAYER_START_X
@@ -115,14 +131,14 @@ class Game:
                     self.__init__(self.width, self.height, title)
                     return
 
-    # ₊˚⊹🐇₊˚⊹  UPDATE (mundo + player + câmera)  ₊˚⊹🐇₊˚⊹
+    # ₊˚⊹🐇₊˚⊹  UPDATE (mundo + player + câmera + score)  ₊˚⊹🐇₊˚⊹
     def update(self, dt: float) -> None:
-        """Atualiza auto-scroll, nuvens, player e movimentação da câmera."""
+        """Atualiza auto-scroll, nuvens, player, câmera e score por distância."""
         keys = pygame.key.get_pressed()
 
-        # auto-scroll (se quiser estilo T-Rex)
-        if AUTO_SCROLL:
-            self.bg_scroll_x += AUTO_SCROLL * dt
+        # auto-scroll baseado em world_speed (pode aumentar com marcos)
+        if self.world_speed:
+            self.bg_scroll_x += self.world_speed * dt
 
         # nuvens (spawn/limpa) + colisão com o buni
         self.clouds.update(dt, self.bg_scroll_x)
@@ -150,6 +166,21 @@ class Game:
         # colisão com a plataforma inicial (se existir)
         self._collide_with_start_platform()
 
+        # ₊˚⊹🐇₊˚⊹  SCORE POR DISTÂNCIA (estilo T-Rex)  ₊˚⊹🐇₊˚⊹
+        delta_scroll = max(0.0, self.bg_scroll_x - self._prev_scroll_x)
+        self._score_px_acum += delta_scroll
+
+        # converte px acumulados em pontos inteiros
+        points = int(self._score_px_acum * SCORE_PER_PIXEL)
+        if points > 0:
+            self.score += points
+            self._score_px_acum -= points / SCORE_PER_PIXEL
+
+        # marcos de velocidade (suave, com limite)
+        if self.score >= self.next_speed_milestone:
+            self.world_speed = min(self.world_speed + SPEED_STEP_DELTA, SPEED_MAX)
+            self.next_speed_milestone += SPEED_STEP_SCORE
+
         # higiene: evita valores doidos no scroll
         if self.bg_scroll_x > 1e6 or self.bg_scroll_x < -1e6:
             self.bg_scroll_x = 0.0
@@ -157,6 +188,9 @@ class Game:
         # caiu da tela?
         if self.player.rect.top > self.height + 40:
             self._reset_after_fall()
+
+        # guarda o scroll pra próxima medição
+        self._prev_scroll_x = self.bg_scroll_x
 
     def _collide_with_start_platform(self) -> None:
         """Colisão simples com a plataforma inicial (topo/lado), se existir."""
@@ -188,7 +222,7 @@ class Game:
             win.blit(self.bg, (x + w, 0))
 
     def draw(self) -> None:
-        """Desenha: fundo, plataforma (se visível), nuvens, buni e HUD."""
+        """Desenha: fundo, plataforma (se visível), nuvens, buni e HUD (com score)."""
         self.draw_background(self.window)
 
         # plataforma inicial (só se estiver visível na tela)
@@ -199,10 +233,10 @@ class Game:
                 dst.left = screen_x
                 self.window.blit(self.platform_start, dst)
 
-        # nuvens + player + HUD
+        # nuvens + player + HUD (com SCORE)
         self.clouds.draw(self.window, self.bg_scroll_x)
         self.player.draw(self.window)
-        self.hud.draw(self.window, self.player.lives, self.clock.get_fps(), self.paused)
+        self.hud.draw(self.window, self.player.lives, self.clock.get_fps(), self.paused, self.score)
 
         pygame.display.flip()
 
