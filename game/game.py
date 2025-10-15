@@ -166,7 +166,7 @@ class Game:
         # colisão com a plataforma inicial (se existir)
         self._collide_with_start_platform()
 
-        # ₊˚⊹🐇₊˚⊹  SCORE POR DISTÂNCIA (estilo T-Rex)  ₊˚⊹🐇₊˚⊹
+        # ₊˚⊹🐇₊˚⊹  SCORE POR DISTÂNCIA  ₊˚⊹🐇₊˚⊹
         delta_scroll = max(0.0, self.bg_scroll_x - self._prev_scroll_x)
         self._score_px_acum += delta_scroll
 
