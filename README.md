@@ -1,4 +1,4 @@
-# 🤍 buni
+# 🤍 Buni
 
 ₍˶ˊᵕˋ˵₎💭
 
@@ -13,25 +13,25 @@
 ## 🤍 Sobre o jogo / About the game
 
 **pt-br 🇧🇷**  
-Você controla um coelhinho pulando entre nuvens!! ☁️  
-Colete estrelas ✨, evite nuvens perigosas ⚡ e tente fazer a maior pontuação possível.  
-Com o tempo, o jogo vai ficando um pouquinho mais rápido, mas ainda tentei manter a vibe *cozy* e tranquila 🌙.
+Você controla um coelhinho pulando entre nuvens ☁️  
+O **score** sobe conforme você avança e, de tempos em tempos, o mundo fica um pouquinho mais rápido
+O placar (melhor pontuação e histórico) é salvo localmente.
 
 **en-us 🇺🇸**  
-You control a small bunny jumping between clouds!! ☁️  
-Collect shiny stars ✨, avoid dangerous clouds ⚡, and try to reach the highest score.  
-Over time, the game speeds up a little, but keeps its calm and cozy atmosphere 🌙.
+You control a tiny bunny jumping across clouds ☁️  
+Your **score** increases as you progress and the world speeds up slightly over time  
+The scoreboard (best and history) is saved locally.
 
 ---
 
 ## 🎮 Controles / Controls
 
 | Ação (pt-br) | Tecla | Action (en-us) |
-|---------------|--------|----------------|
+|---|---|---|
 | Pular | **Espaço / ↑** | Jump |
 | Mover | **← / →** | Move |
-| Pausar | **P** | Pause |
-| Reiniciar | **R** | Restart |
+| Pausar / Retomar | **P** | Pause / Resume |
+| Reiniciar partida | **R** | Restart |
 | Sair do jogo | **Esc** | Quit |
 
 ---
@@ -64,54 +64,29 @@ Over time, the game speeds up a little, but keeps its calm and cozy atmosphere �
 ## 🧩 Estrutura do projeto / Project structure
 
 ```text
-buni-project/
-│
-├─ main.py                # ponto de entrada / main entry
+buni/
+├─ main.py
 ├─ requirements.txt
-├─ .gitignore
 ├─ README.md
 │
-├─ buni/                  # pacote do jogo / main package
+├─ game/
 │  ├─ __init__.py
+│  ├─ constants.py
 │  ├─ game.py
 │  ├─ player.py
-│  ├─ hud.py
 │  ├─ cloud.py
 │  ├─ cloudManager.py
-│  ├─ safeCloud.py
-│  ├─ dangerCloud.py
-│  ├─ crackOverlay.py
-│  ├─ parallaxBackground.py
-│  └─ platformStart.py
+│  ├─ hud.py
+│  └─ menu.py
 │
-└─ assets/                # sprites, sons, fontes / sprites, sounds, fonts
+└─ assets/
+   ├─ background/
+   ├─ buni/
+   ├─ clouds/
+   ├─ fonts/           # Tiny5-Regular.ttf
+   ├─ hud/
+   └─ sfx/             # click.wav, jump.wav
  ```
-
----
-
-## 💾 Tecnologias e aprendizado / Technologies & learning
-
-Este projeto foi desenvolvido como parte da disciplina **Linguagem de Programação Aplicada** do curso de **Análise e Desenvolvimento de Sistemas (ADS)** da **Uninter**, com foco em:
-
-- 🎮 **Pygame** — desenvolvimento do jogo principal e controle de física 2D.  
-- 🧱 **UML (Diagrama de Classes)** — modelagem estrutural do sistema antes da implementação.  
-- 🧩 **StarUML** — ferramenta usada para desenhar e gerar o código base em Python a partir do diagrama.  
-- 💾 **Banco de Dados (EntityScore)** — armazenamento local das pontuações e nomes dos jogadores.  
-- 🐍 **Python 3.10+** — linguagem principal do projeto.  
-- 🧠 **Programação Orientada a Objetos (POO)** — organização do código em classes e métodos.  
-- 🧵 **Git + GitHub** — controle de versão e publicação do projeto.  
-
----
-
-This project was developed as part of the **Applied Programming Language** course in the **Systems Analysis and Development (ADS)** program at **Uninter**, focusing on:
-
-- 🎮 **Pygame** — main game development and 2D physics handling.  
-- 🧱 **UML (Class Diagram)** — structural modeling before implementation.  
-- 🧩 **StarUML** — used to design and generate Python base code from the diagram.  
-- 💾 **Database (EntityScore)** — local storage for player names and scores.  
-- 🐍 **Python 3.10+** — main programming language.  
-- 🧠 **Object-Oriented Programming (OOP)** — class-based game architecture.  
-- 🧵 **Git + GitHub** — version control and project publishing.
 
 ---
 
@@ -119,27 +94,51 @@ This project was developed as part of the **Applied Programming Language** cours
 
 **pt-br 🇧🇷**
 
-- Coelhinho pula em nuvens seguras ☁️
+- Pulo entre nuvens (colisão suave) ☁️
 
-- Evite nuvens perigosas ⚡
+- Score por distância percorrida 
 
-- Colete estrelas ✨ para aumentar a pontuação
-
-- A dificuldade aumenta conforme o score sobe
-
-- Efeitos visuais calmos e dreamcore 💫
+- A velocidade do mundo sobe em marcos de pontuação 📈
 
 **en-us 🇺🇸**
 
-- Bunny jumps on safe clouds ☁️
+- Cloud-to-cloud platforming with soft collisions ☁️
 
-- Avoid dangerous ones ⚡
+- Score increases with distance
 
-- Collect stars ✨ to increase your score
+- World speed steps up at score milestones 📈
 
-- Game difficulty scales gradually with your progress
+---
 
-- Dreamcore & cozy atmosphere 💫
+## 💾 Tecnologias e aprendizado / Technologies & learning
+
+Este projetinho foi desenvolvido como parte da disciplina **Linguagem de Programação Aplicada** do curso de **Análise e Desenvolvimento de Sistemas (ADS)** da **Uninter**, com foco em:
+
+- **Python + Pygame** — estrutura básica de jogo, loop, eventos e desenho.
+- **Sprites** do buni (idle/run/jump) com troca de frames simples.
+- **Física** rápida: gravidade, pulo e “coyote time” (pulo perdoa 1 tiquinho).
+- **Nuvens** com espaçamento e colisão suave.
+- **Câmera** com dead-zone e scroll do fundo.
+- **Score** por distância + leves aumentos de velocidade.
+- **SQLite** pra salvar **best** e **histórico** no `~/.buni/buni.db`.
+- **Build** com PyInstaller (onedir/onefile) e assets empacotados.
+
+> Ideias que deixei pra depois: crack overlay, dano, estrelinhas/colecionáveis, efeitos sonoros extras.
+
+---
+
+This little project was developed as part of the **Applied Programming Language** course in the **Systems Analysis and Development (ADS)** program at **Uninter**, focusing on:
+
+- **Python + Pygame** — game loop, events and rendering basics.
+- **Sprite animation** (idle/run/jump).
+- **Simple physics**: gravity, jump and a small coyote time.
+- **Clouds** spacing + soft collisions.
+- **Camera** dead-zone with background scrolling.
+- **Score** by distance + gentle speed steps.
+- **SQLite** for all-time best & history at `~/.buni/buni.db`.
+- **Packaging** with PyInstaller (onedir/onefile).
+
+> Future ideas: crack overlay, damage, collectibles, extra SFX.
 
 ---
 
@@ -150,27 +149,33 @@ This project was developed as part of the **Applied Programming Language** cours
   *(Arte original por Givty)*  
 
 
-- 🌤️ **Céu e background** — criados por Bianca R.  
-- ⭐ **Estrela e demais elementos** — em desenvolvimento por Bianca R.  
+- 🔤 **Fonte** — [Tiny5](https://fonts.google.com/specimen/Tiny5) por [Stefan Schmidt](https://github.com/Gissio)                    
+Licença: [SIL Open Font License 1.1](https://openfontlicense.org/)
+
+
+- 🌤️ **Céu e background** — criados por mim!!  
 
 ---
 
 - 🐰 **Main character (Buni)** — used with color modifications, from assets by [Givty](https://givty.itch.io/).  
   *License:* allowed for commercial and non-commercial projects, credit appreciated but not required.  
-  *(Original art by Givty)*  
+  *(Original art by Givty)*
 
 
-- 🌤️ **Sky and background** — created by Bianca R.  
-- ⭐ **Star and other elements** — in development by Bianca R.
+- 🔤 **Font** — [Tiny5](https://fonts.google.com/specimen/Tiny5) by [Stefan Schmidt](https://github.com/Gissio)                    
+License: [SIL Open Font License 1.1](https://openfontlicense.org/)
+
+
+- 🌤️ **Sky and background** — created by me!!
 
 ---
 
 ---
 
 <p align="center">
-  🐇 ( ˶ˆᗜˆ˵ )ﾉ☆  
-  <br><br>
-  <strong>“A cada salto, o coelhinho sonha mais alto.”</strong>  
-  <br>
-  <em>“With each jump, the bunny dreams higher.” 🌙</em>
+  🐇 ( ˶ˆᗜˆ˵ )ﾉ☆
 </p>
+
+---
+
+---

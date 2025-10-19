@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 # ₊˚⊹🐇₊˚⊹  CONSTANTES (ajustes do jogo)  ₊˚⊹🐇₊˚⊹
 from pathlib import Path
+import sys
 
-# caminhos base (pra carregar sprites/fundos)
-BASE_DIR   = Path(__file__).resolve().parents[1]
+if getattr(sys, "frozen", False):
+    BASE_DIR = Path(sys._MEIPASS)  # type: ignore[attr-defined]
+else:
+    BASE_DIR = Path(__file__).resolve().parents[1]
+
 ASSETS_DIR = BASE_DIR / "assets"
 
 # física e movimento do buni
@@ -48,7 +52,7 @@ CLOUD_BAND_JITTER = 22
 # degrau máximo entre plataformas (pra pulo atual)
 MAX_CLOUD_STEP = 90
 
-# quanto eu gero além da borda direita (buffer pra não ficar aparecendo do nada)
+# quanto eu gero alééeeem da borda direita (buffer pra não ficar aparecendo do nada)
 SPAWN_BUFFER = 180
 
 # ₊˚⊹🐇₊˚⊹  SCORE & DIFICULDADE  ₊˚⊹🐇₊˚⊹

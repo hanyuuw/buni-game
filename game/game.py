@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import pygame
+import pygame.mixer
 from pygame.surface import Surface
+from pathlib import Path
+import sqlite3
 
 from .constants import (
     ASSETS_DIR, GROUND_Y,
@@ -24,10 +27,28 @@ def try_load_image(*relpath: str) -> Surface | None:
     except FileNotFoundError:
         return None
 
+# ₊˚⊹🐇₊˚⊹  HELPERS DE ÁUDIO  ₊˚⊹🐇₊˚⊹
+def try_load_sound(*relpath: str) -> pygame.mixer.Sound | None:
+    """Carrega um .wav de /assets; se falhar, retorna None."""
+    path = ASSETS_DIR.joinpath(*relpath)
+    if path.is_file():
+        try:
+            return pygame.mixer.Sound(str(path))
+        except Exception:
+            return None
+    return None
+
 
 class Game:
     def __init__(self, width: int, height: int, title: str = "Buni"):
         pygame.init()
+        # mixer (caso main não tenha feito pre_init)
+        if not pygame.mixer.get_init():
+            try:
+                pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
+            except Exception:
+                pass
+
         pygame.display.set_caption(title)
 
         self.width, self.height = width, height
@@ -35,19 +56,27 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
 
+        # estados
         self.state: str = "menu"  # menu | playing | paused | scores
 
+        # câmera (dead-zone)
         self.cam_left  = CAM_LEFT
         self.cam_right = int(self.width * CAM_RIGHT_RATIO)
 
+        # fundo
         self.bg = try_load_image("background", "bg.png")
         self.bg_scroll_x = 0.0
         self._prev_scroll_x = 0.0
 
+        # menus / HUD
         self.menu = Menu(self.width, self.height)
+        self.hud = HUD()
 
-        self.player = Player()
+        # player + sfx
+        self.snd_jump = try_load_sound("sfx", "jump.wav")
+        self.player = Player(jump_sound=self.snd_jump)
 
+        # plataforma inicial (opcional)
         self.platform_start: Surface | None = try_load_image("background", "platform_start.png")
         self.platform_rect: pygame.Rect | None = None
         self.platform_world_x: float | None = None
@@ -66,26 +95,84 @@ class Game:
             self.player.rect.bottom = GROUND_Y
             self.player.rect.x = max(self.player.rect.x, self.cam_left)
 
+        # nuvens
         self._clouds_start_x = (
             (self.platform_world_x + self.platform_rect.width)
             if (self.platform_rect and self.platform_world_x is not None) else 180
         )
         self.clouds = CloudManager(self._clouds_start_x, self.width)
 
-        self.hud = HUD()
-
+        # ₊˚⊹🐇₊˚⊹  SCORE & VELOCIDADE  ₊˚⊹🐇₊˚⊹
         self.score = 0
         self._score_px_acum = 0.0
         self.world_speed = AUTO_SCROLL
         self.next_speed_milestone = SPEED_STEP_SCORE
 
+        # sessão (runtime)
         self.best_score = 0
         self.score_history: list[int] = []
 
+        # ₊˚⊹🐇₊˚⊹  DB (scores all-time)  ₊˚⊹🐇₊˚⊹
+        self.player_nick = "Player"  # pode virar campo no menu depois
+        self._db_init()
+        self._refresh_leaderboard_cache()
+
+    # ₊˚⊹🐇₊˚⊹  SCORE: BANCO (SQLite)  ₊˚⊹🐇₊˚⊹
+    def _db_path(self) -> Path:
+        base = Path.home() / ".buni"
+        base.mkdir(parents=True, exist_ok=True)
+        return base / "buni.db"
+
+    def _db_init(self) -> None:
+        self._conn = sqlite3.connect(self._db_path())
+        self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS scores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                nick TEXT,
+                score INTEGER NOT NULL
+            )
+        """)
+        self._conn.commit()
+
+    def _db_insert_score(self, score: int) -> None:
+        try:
+            self._conn.execute("INSERT INTO scores (nick, score) VALUES (?, ?)",
+                               (self.player_nick, int(score)))
+            self._conn.commit()
+        except Exception:
+            pass
+
+    def _db_best(self) -> int:
+        cur = self._conn.execute("SELECT COALESCE(MAX(score),0) FROM scores")
+        (best,) = cur.fetchone()
+        return int(best or 0)
+
+    def _db_last(self, n: int = 30) -> list[int]:
+        cur = self._conn.execute("SELECT score FROM scores ORDER BY id DESC LIMIT ?", (n,))
+        return [int(r[0]) for r in cur.fetchall()]
+
+    def _refresh_leaderboard_cache(self) -> None:
+        self.best_all_time = self._db_best()
+        self.history_all_time = self._db_last(30)
+
+    def _db_close(self) -> None:
+        try:
+            self._conn.close()
+        except Exception:
+            pass
+
+    # ₊˚⊹🐇₊˚⊹  RESET APÓS QUEDA  ₊˚⊹🐇₊˚⊹
     def _reset_after_fall(self) -> None:
+        # salva esta corrida no banco
+        self._db_insert_score(self.score)
+        self._refresh_leaderboard_cache()
+
+        # sessão (runtime)
         self.best_score = max(self.best_score, self.score)
         self.score_history.append(self.score)
 
+        # reset suave
         self.score = 0
         self._score_px_acum = 0.0
         self.world_speed = AUTO_SCROLL
@@ -105,6 +192,7 @@ class Game:
         self.player.vel_y = 0
         self.player.on_ground = True
 
+    # ₊˚⊹🐇₊˚⊹  EVENTOS  ₊˚⊹🐇₊˚⊹
     def handle_events(self) -> None:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -121,7 +209,6 @@ class Game:
                         self.state = "playing"
                     elif self.state == "paused":
                         self.state = "playing"
-                    # em "scores" não usa ENTER; tem botão Back
                     return
 
                 if event.key == pygame.K_p:
@@ -158,6 +245,7 @@ class Game:
                         self.state = "menu"
                         return
 
+    # ₊˚⊹🐇₊˚⊹  UPDATE (mundo + player + câmera + score)  ₊˚⊹🐇₊˚⊹
     def update(self, dt: float) -> None:
         keys = pygame.key.get_pressed()
 
@@ -171,6 +259,7 @@ class Game:
         self.player.update(dt, keys)
         dx = self.player.rect.x - prev_x
 
+        # câmera com dead-zone
         if self.player.rect.x > self.cam_right and dx > 0:
             shift = self.player.rect.x - self.cam_right
             self.bg_scroll_x += shift
@@ -186,6 +275,7 @@ class Game:
 
         self._collide_with_start_platform()
 
+        # score por distância
         delta_scroll = max(0.0, self.bg_scroll_x - self._prev_scroll_x)
         self._score_px_acum += delta_scroll
         points = int(self._score_px_acum * SCORE_PER_PIXEL)
@@ -193,15 +283,18 @@ class Game:
             self.score += points
             self._score_px_acum -= points / SCORE_PER_PIXEL
 
+        # marcos de velocidade
         if self.score >= self.next_speed_milestone:
             self.world_speed = min(self.world_speed + SPEED_STEP_DELTA, SPEED_MAX)
             self.next_speed_milestone += SPEED_STEP_SCORE
 
+        # caiu da tela?
         if self.player.rect.top > self.height + 40:
             self._reset_after_fall()
 
         self._prev_scroll_x = self.bg_scroll_x
 
+    # ₊˚⊹🐇₊˚⊹  COLISÃO COM A PLATAFORMA INICIAL  ₊˚⊹🐇₊˚⊹
     def _collide_with_start_platform(self) -> None:
         if not (self.platform_start and self.platform_rect and self.platform_world_x is not None):
             return
@@ -218,6 +311,7 @@ class Game:
             elif p.rect.left < plat_rect.right and p.rect.centerx > plat_rect.centerx:
                 p.rect.left = plat_rect.right
 
+    # ₊˚⊹🐇₊˚⊹  DESENHO: FUNDOS / CENA  ₊˚⊹🐇₊˚⊹
     def draw_background(self, win: Surface) -> None:
         if not self.bg:
             win.fill((32, 34, 44)); return
@@ -232,7 +326,8 @@ class Game:
         self.menu.draw_menu(self.window, self.draw_background)
 
     def draw_scores(self) -> None:
-        self.menu.draw_scores(self.window, self.draw_background, self.best_score, self.score_history)
+        self.menu.draw_scores(self.window, self.draw_background,
+                              self.best_all_time, self.history_all_time)
 
     def _render_scene(self, paused: bool = False) -> None:
         self.draw_background(self.window)
@@ -254,6 +349,7 @@ class Game:
         self._render_scene(paused=True)
         self.menu.draw_pause_overlay(self.window)
 
+    # ₊˚⊹🐇₊˚⊹  LOOP PRINCIPAL  ₊˚⊹🐇₊˚⊹
     def run(self) -> None:
         while self.running:
             dt = self.clock.tick(60) / 1000.0
@@ -270,4 +366,6 @@ class Game:
                 dt = MAX_DT
             self.update(dt)
             self.draw()
+
+        self._db_close()
         pygame.quit()

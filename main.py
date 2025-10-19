@@ -1,12 +1,17 @@
+# -*- coding: utf-8 -*-
 # ₊˚⊹🐇₊˚⊹  ENTRADA  ₊˚⊹🐇₊˚⊹
-from game.game import Game
+import pygame
 
+def main() -> None:
+    """Cria a janela do Buni"""
+    # menos atraso no som
+    pygame.mixer.pre_init(44100, -16, 2, 512)
+    pygame.init()
 
-def main():
-    """Cria a janela do Buni e inicia o loop do jogo."""
+    from game.game import Game
+
     game = Game(800, 480, title="Buni")
     game.run()
-
 
 if __name__ == "__main__":
     main()

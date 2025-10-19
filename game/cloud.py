@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# ₊˚⊹🐇₊˚⊹  CLOUD (plataforma segura)  ₊˚⊹🐇₊˚⊹
+# ₊˚⊹🐇₊˚⊹  CLOUD  ₊˚⊹🐇₊˚⊹
 import pygame
 from pygame.surface import Surface
 from pygame.rect import Rect
@@ -9,7 +9,7 @@ from .constants import ASSETS_DIR
 class Cloud:
     # cada nuvem é uma plataforma onde o buni pode pisar
     def __init__(self, x: int, y: int):
-        """Cria uma nuvem segura em (x, y) com sprite do assets ou placeholder."""
+        """Cria uma nuvem segura em (x, y) com sprite do assets"""
         self.x = x
         self.y = y
 
@@ -34,6 +34,7 @@ class Cloud:
         """Retorna o retângulo na tela com o scroll aplicado (pra colisão)."""
         return pygame.Rect(self.x - scroll_x, self.y, self.rect.width, self.rect.height)
 
+    # (pra adicionar depois :c zz)
     def is_danger(self) -> bool:
         """Indica se a nuvem é perigosa (por enquanto, sempre False)."""
         return False

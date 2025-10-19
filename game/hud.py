@@ -1,58 +1,39 @@
 # -*- coding: utf-8 -*-
-# ₊˚⊹🐇₊˚⊹  HUD (vidas / fps / pause / score)  ₊˚⊹🐇₊˚⊹
+# ₊˚⊹🐇₊˚⊹  HUD  ₊˚⊹🐇₊˚⊹
 from __future__ import annotations
 
 import pygame
 from pygame.surface import Surface
 
-from .constants import ASSETS_DIR, HEART_SCALE, HEART_GAP
+from .constants import ASSETS_DIR
 
-
-def _load_image(*relpath: str) -> Surface | None:
-    """Carrega uma imagem do /assets; se não achar, devolve None."""
-    path = ASSETS_DIR.joinpath(*relpath)
-    try:
-        return pygame.image.load(str(path)).convert_alpha()
-    except FileNotFoundError:
-        return None
+# ₊˚⊹🐇₊˚⊹  FONTE  ₊˚⊹🐇₊˚⊹
+def load_font(size: int, bold: bool = False) -> pygame.font.Font:
+    font_path = ASSETS_DIR / "fonts" / "Tiny5-Regular.ttf"
+    if font_path.is_file():
+        return pygame.font.Font(str(font_path), size)
+    return pygame.font.SysFont("consolas", size, bold=bold)
 
 
 class HUD:
-    # desenha os corações, o FPS, o "PAUSED" e o SCORE
-    def __init__(self, pos: tuple[int, int] = (10, 30), gap: int = HEART_GAP):
-        """Prepara o HUD (imagem do coração, fonte e posições)."""
-        self.heart: Surface | None = _load_image("hud", "heart_full.png")
-        if self.heart and HEART_SCALE != 1.0:
-            w, h = self.heart.get_width(), self.heart.get_height()
-            self.heart = pygame.transform.smoothscale(
-                self.heart, (int(w * HEART_SCALE), int(h * HEART_SCALE))
-            )
-        self.pos = pos
-        self.gap = gap
-        self.font = pygame.font.SysFont("consolas", 14)
-        self.font_score = pygame.font.SysFont("consolas", 18, bold=True)
+    def __init__(self) -> None:
+        self.font = load_font(18, bold=True)
+        self.font_small = load_font(14)
+        self.col_text = (235, 235, 240)
+        self.col_shadow = (0, 0, 0)
 
-    def draw(self, win: Surface, lives: int, fps: float, paused: bool, score: int | None = None) -> None:
-        """Desenha vidas, FPS, PAUSE e (se tiver) o SCORE no canto direito."""
-        # corações (vidas) — canto esquerdo
-        if self.heart and lives > 0:
-            x, y = self.pos
-            for i in range(lives):
-                win.blit(self.heart, (x + i * self.gap, y))
+    # ₊˚⊹🐇₊˚⊹  TEXTINHO COM SOMBRA  ₊˚⊹🐇₊˚⊹
+    def _blit_text(self, win: Surface, text: str, x: int, y: int, align: str = "left") -> None:
+        label = self.font.render(text, True, self.col_text)
+        shadow = self.font.render(text, True, self.col_shadow)
+        if align == "right":
+            x = x - label.get_width()
+        win.blit(shadow, (x + 1, y + 1))
+        win.blit(label, (x, y))
 
+    # ₊˚⊹🐇₊˚⊹  DESENHO  ₊˚⊹🐇₊˚⊹
+    def draw(self, win: Surface, lives: int, fps: float, paused: bool, score: int) -> None:
         # FPS
-        fps_text = self.font.render(f"FPS: {int(fps)}", True, (180, 180, 180))
-        win.blit(fps_text, (10, 10))
-
+        self._blit_text(win, f"FPS {int(fps)}", 8, 6, align="left")
         # SCORE
-        if score is not None:
-            text = self.font_score.render(f"SCORE: {score}", True, (235, 235, 235))
-            pad = 10
-            x = win.get_width() - text.get_width() - pad
-            y = 10
-            win.blit(text, (x, y))
-
-        # PAUSE
-        if paused:
-            pause_txt = self.font.render("PAUSED (P)", True, (200, 200, 200))
-            win.blit(pause_txt, (10, 26))
+        self._blit_text(win, f"SCORE {score}", win.get_width() - 8, 6, align="right")

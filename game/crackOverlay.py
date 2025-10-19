@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+# (pra depoooooois)
 class CrackOverlay:
     def __init__(self):
         self.images = None

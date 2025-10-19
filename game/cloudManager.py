@@ -46,7 +46,6 @@ class CloudManager:
 
     def _spawn_one(self) -> None:
         """Cria uma nuvem respeitando alcance em X e degrau máximo em Y."""
-        # X com respiro mínimo e cap de alcance
         gap = self._next_gap()
         x = max(self.rightmost_world_x + gap, self.rightmost_world_x + MIN_LOCAL_SPACING_X)
         if self._prev_route_x is not None:
@@ -92,22 +91,18 @@ class CloudManager:
             self._last_bands.pop(0)
 
     def ensure_to_fill(self, scroll_x: float):
-        """Gera nuvens até cobrir a janela + um buffer de segurança."""
         while self.rightmost_world_x < scroll_x + self.screen_width + SPAWN_BUFFER:
             self._spawn_one()
 
     def cull_left(self, scroll_x: float):
-        """Remove nuvens que já foram muito pra esquerda e não aparecem mais."""
         left_limit = scroll_x - (SPAWN_BUFFER + 200)
         self.clouds = [c for c in self.clouds if c.x + c.rect.width > left_limit]
 
     def update(self, dt: float, scroll_x: float):
-        """Atualiza geração e limpeza de nuvens com base no scroll atual."""
         self.ensure_to_fill(scroll_x)
         self.cull_left(scroll_x)
 
     def draw(self, win: Surface, scroll_x: float):
-        """Desenha todas as nuvens na tela."""
         for c in self.clouds:
             c.draw(win, scroll_x)
 

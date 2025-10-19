@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # ₊˚⊹🐇₊˚⊹  PLAYER (Buni)  ₊˚⊹🐇₊˚⊹
 import pygame
+import pygame.mixer
 from pygame.surface import Surface
 from pygame.rect import Rect
 
@@ -16,8 +17,7 @@ from .constants import (
 class Player:
     # ₊˚⊹🐇₊˚⊹  ESTADO INICIAL  ₊˚⊹🐇₊˚⊹
     # aqui eu guardo tudo que o buni precisa pra existir (sprite, caixa, vel, etc)
-    def __init__(self) -> None:
-        """Cria o Buni com sprite, caixa de colisão e estados iniciais."""
+    def __init__(self, jump_sound: pygame.mixer.Sound | None = None) -> None:
         self.image: Surface | None = None
         self.rect: Rect | None = None
 
@@ -29,9 +29,12 @@ class Player:
         self.lives: int = 3
         self.facing = 1
 
+        # sfx
+        self.snd_jump = jump_sound  # somzinho curto no momento do pulo
+
         # animações básicas
         self.animations: dict[str, list[Surface]] = {}
-        self.state: str = "idle"      # idle | run | jump | hurt | death
+        self.state: str = "idle"      # idle | run | jump
         self.frame: int = 0
         self.frame_timer: float = 0.0
         self.frame_rate: float = FRAME_RATE
@@ -40,7 +43,7 @@ class Player:
         self.coyote_max = 0.25  # ~250ms
         self.coyote_timer = 0.0
 
-        # sprites do buni (se faltar, eu deixo um quadradinho magenta pra lembrar)
+        # sprites do buni
         self._load_all_animations()
 
         # caixa e posição inicial
@@ -64,28 +67,20 @@ class Player:
                 print(f"[aviso] sprite não encontrado: {path}")
 
         if not frames:
-            # placeholder visível só pra eu lembrar que faltou arquivo
+            # placeholder visivel só pra eu lembrar que faltou arquivo
             print(f"[erro] nenhum sprite em {subdir} pra base '{base}'")
             ph = pygame.Surface((32, 32), pygame.SRCALPHA)
             ph.fill((255, 0, 255, 180))
             frames = [ph]
         return frames
 
-    # carrega tudo de uma vez (idle/run/jump/hurt/death)
+    # carrega tudo de uma vez (idle/run/jump)
     def _load_all_animations(self) -> None:
-        """Carrega todas as animações do Buni (e um fallback pra death)."""
         self.animations["idle"] = self._load_strip("idle", "idle", 3)
         self.animations["run"]  = self._load_strip("run", "run", 5)
         self.animations["jump"] = self._load_strip("jump", "jump", 3)
-        self.animations["hurt"] = self._load_strip("hurt", "hurt", 3)
-
-        death_frames = self._load_strip("death", "death", 2)
-        # se "death" não existir, usa "hurt" como quebra-galho
-        self.animations["death"] = death_frames if death_frames else self.animations["hurt"]
-        self.image = self.animations[self.state][0]
 
     # ₊˚⊹🐇₊˚⊹  INPUT / MOVIMENTO HORIZONTAL  ₊˚⊹🐇₊˚⊹
-    # aqui cuido do A/D/←/→ e também chamo o pulo
     def handle_input(self, keys, dt: float) -> None:
         """Lê teclado, move em X e decide estado de animação."""
         moving = False
@@ -104,7 +99,7 @@ class Player:
         # aplica o deslocamento horizontal
         self.rect.x += int(dx)
 
-        # tecla de pulo (usa coyote time se tiver)
+        # tecla de pulo
         if keys[pygame.K_SPACE] or keys[pygame.K_w] or keys[pygame.K_UP]:
             self.jump()
 
@@ -121,8 +116,10 @@ class Player:
         if self.on_ground or self.coyote_timer > 0.0:
             self.vel_y = JUMP_SPEED
             self.on_ground = False
-            self.coyote_timer = 0.0  # consumiu a janela do coyote
+            self.coyote_timer = 0.0
             self._set_state("jump")
+            if self.snd_jump:
+                self.snd_jump.play()
 
     # ₊˚⊹🐇₊˚⊹  FÍSICA VERTICAL  ₊˚⊹🐇₊˚⊹
     # gravidade + integração da posição; o pouso real acontece nas colisões com as nuvens
@@ -131,14 +128,8 @@ class Player:
         self.vel_y += GRAVITY * dt
         self.rect.y += int(self.vel_y * dt)
 
-        # não "cola" no GROUND_Y aqui porque as plataformas que mandam
         if self.rect.bottom >= GROUND_Y:
             self.on_ground = False
-
-    # ₊˚⊹🐇₊˚⊹  DANO (efeito visual)  ₊˚⊹🐇₊˚⊹
-    def take_damage(self) -> None:
-        """Troca animação pra 'hurt' (efeito visual)."""
-        self._set_state("hurt")
 
     # ₊˚⊹🐇₊˚⊹  UPDATE GERAL  ₊˚⊹🐇₊˚⊹
     # orquestra input, física e animação; também atualiza o timer do coyote
@@ -148,7 +139,7 @@ class Player:
         self.apply_gravity(dt)
         self._animate(dt)
 
-        # coyote: se no chão, recarrega; se no ar, conta pra baixo
+        # coyote: se no chão, recarrega; se no ar, conta pra baixo..
         if self.on_ground:
             self.coyote_timer = self.coyote_max
         else:
@@ -158,7 +149,7 @@ class Player:
     # ₊˚⊹🐇₊˚⊹  ANIMAÇÃO  ₊˚⊹🐇₊˚⊹
     # troca os frames no ritmo certo
     def _animate(self, dt: float) -> None:
-        """Avança os frames da animação no ritmo configurado."""
+        """Avança os frames da animação no ritmo configurado"""
         frames = self.animations.get(self.state, self.animations["idle"])
         if not frames:
             return
@@ -169,15 +160,13 @@ class Player:
         self.image = frames[self.frame]
 
     # ₊˚⊹🐇₊˚⊹  DESENHO  ₊˚⊹🐇₊˚⊹
-    # desenha o buni; se estiver olhando pra esquerda, eu dou flip no sprite
     def draw(self, win: Surface) -> None:
-        """Desenha o Buni na tela (espelha quando estiver virado pra esquerda)."""
+        """Desenha o Buni na tela (espelha quando estiver virado pra esquerda!!)."""
         img = self.image
         if self.facing == -1:
             img = pygame.transform.flip(img, True, False)
         win.blit(img, self.rect.topleft)
 
-    # se ele estiver no chão, força a animação correta imediatamente
     def force_ground_anim(self, moving: bool, world_speed: float) -> None:
         """Se estiver no chão, força run/idle neste frame."""
         if self.on_ground:
@@ -185,7 +174,7 @@ class Player:
 
     # ₊˚⊹🐇₊˚⊹  HELPER DE ESTADO  ₊˚⊹🐇₊˚⊹
     def _set_state(self, new_state: str) -> None:
-        """Troca o estado de animação e reseta o frame timer."""
+        """Ttroca o estado de animação e reseta o frame timer."""
         if new_state != self.state:
             self.state = new_state
             self.frame = 0
